@@ -22,14 +22,12 @@ public class BackupState {
         }
     }
 
-    /** Update only the sequence id (e.g., from Camera when a new frame/event arrives). */
     public static synchronized void updateSeq(long seqId) {
         State s = load();
         s.lastSeqId = seqId;
         save(s);
     }
 
-    /** Update only the decision (e.g., from CollisionDetector/CarController). */
     public static synchronized void updateDecision(String decision) {
         if (decision == null) return;
         State s = load();
@@ -37,15 +35,12 @@ public class BackupState {
         save(s);
     }
 
-    /** Load last checkpoint, return SAFE/0 if none exists. */
     public static synchronized State load() {
         State s = new State();
         s.lastSeqId = 0L;
         s.lastDecision = "SAFE";
-
         File f = new File(FILE);
         if (!f.exists()) return s;
-
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String json = br.readLine();
             if (json == null) return s;
