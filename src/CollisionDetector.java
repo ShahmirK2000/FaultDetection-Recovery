@@ -1,10 +1,8 @@
 package src;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Random;
+import java.net.*;
+import java.io.*;
 
 public class CollisionDetector implements Runnable {
     private enum HealthStatus {
@@ -14,6 +12,11 @@ public class CollisionDetector implements Runnable {
 
     private final Camera camera;
     private final Random random;
+
+    // control channel for TAKEOVER
+    private static final int BACKUP_CONTROL_PORT = 7003;
+    private static final String BACKUP_BIND_HOST = "0.0.0.0"; // or "127.0.0.1"
+
 
     private final float failChance = 0.25f;
     private final int maxFailCount = 3;
@@ -148,9 +151,38 @@ public class CollisionDetector implements Runnable {
         }
     }
 
+    private static void waitForTakeoverAndRun(CollisionDetector det) {
+        System.out.println("[Backup] Waiting for TAKEOVER on port " + BACKUP_CONTROL_PORT);
+        try (ServerSocket server = new ServerSocket(BACKUP_CONTROL_PORT, 50, InetAddress.getByName(BACKUP_BIND_HOST))) {
+            try (Socket s = server.accept();
+                BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()))) {
+                String line = br.readLine();
+                if ("TAKEOVER".equals(line)) {
+                    System.out.println("[Backup] TAKEOVER received: restoring checkpoint and starting.");
+                    BackupState.State snap = BackupState.load();
+                    System.out.println("[Backup] Restored: " + snap);
+                    det.run(); // start normal detection loop
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("[Backup] Control socket error: " + e.getMessage());
+        }
+    }
+
+
     public static void main(String[] args) {
+        boolean isBackup = false;
+        for (String a : args) {
+            if ("--backup".equalsIgnoreCase(a) || "-b".equalsIgnoreCase(a)) isBackup = true;
+        }
+
         CollisionDetector detector = new CollisionDetector(new Camera("Camera-1", 0.75f));
-        
+        if (isBackup) {
+            waitForTakeoverAndRun(detector); // ADD
+        } else {
+            detector.run();
+        }
+
         String hostName = "localhost";
         int port = 6355;
         try {

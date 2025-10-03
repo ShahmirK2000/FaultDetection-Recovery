@@ -7,6 +7,8 @@ public class Camera {
     private final String cameraID;
     private final float detectionProbability;
     private final Random random;
+    private long seqId = 0; // Sequence for checkpointing
+
     
     /**
      * Constructor
@@ -49,6 +51,15 @@ public class Camera {
      * @return true if an object is detected, false otherwise
      */
     public boolean isObjectDetected() {
+        seqId++;                        // bump sequence for this "tick"
+        BackupState.updateSeq(seqId);   // checkpoint the latest seq to disk
+
+        // non-deterministic failure (2% chance per call) — adjust as needed
+        if (random.nextDouble() < 0.02) {
+            throw new RuntimeException("Simulated crash in Camera");
+        }
+
+        // existing detection behavior
         return random.nextFloat() < detectionProbability;
     }
 

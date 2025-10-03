@@ -1,13 +1,20 @@
 package src;
 
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
+import java.net.*;
+import java.io.*;
+
 
 public class CarController extends Thread {
     private ServerSocket serverSocket;
     private int lastHeartbeat;
+
+    
+    private static final String BACKUP_HOST = "127.0.0.1";  // change if backup runs elsewhere
+    private static final int BACKUP_CONTROL_PORT = 7003;
+
 
     public CarController(int port) {
         try {
@@ -48,6 +55,17 @@ public class CarController extends Thread {
                     lastHeartbeat = (int) (System.currentTimeMillis() / 1000); // Reset to avoid repeated actions
                     break; // Exit loop or take other actions
                 }
+
+                System.out.println("[Monitor] Heartbeat timeout — signaling backup to TAKEOVER.");
+                try (Socket s = new Socket(BACKUP_HOST, BACKUP_CONTROL_PORT);
+                    PrintWriter out = new PrintWriter(s.getOutputStream(), true)) {
+                    out.println("TAKEOVER");
+                } catch (IOException e) {
+                    System.err.println("[Monitor] Failed to signal TAKEOVER: " + e.getMessage());
+                }
+
+                // NOTE: we're not reviving the dead primary here; the backup will begin running
+
             }
         } catch (Exception e) {
             e.printStackTrace();
