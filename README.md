@@ -50,3 +50,14 @@ javac -d out src/*.java
 
 # Windows (PowerShell or CMD)
 javac -d out src\*.java
+```
+
+## Run
+```bash
+# monitor
+java src.CarController
+java src.CollisionDetector
+java src.CollisionDetector --backup
+```
+
+
